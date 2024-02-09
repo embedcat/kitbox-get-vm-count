@@ -35,4 +35,4 @@ if __name__ == "__main__":
             actual_count = count_vms(vms=response["VendingMachines"])
             update_html(counter=actual_count, filepath=sys.argv[1] if len(sys.argv) > 1 else None)
         else:
-            print(f"Error. Result code is {response["ResultCode"]}")
+            print(f"Error. Result code is {response['ResultCode']}")
