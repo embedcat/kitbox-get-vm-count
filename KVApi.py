@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 import hashlib
 import json
 import time
@@ -28,9 +27,7 @@ class KVApi():
         auth = self._make_auth()
         # filter = make_filter(up_date="20.12.2023 15:41:08", to_date="21.12.2023 13:59:00")
         body = self._make_body(auth=auth)
-        now = datetime.now()
-        file = f"{file_path_to_dump}/company{self.client.company_id}_{datetime.strftime(now, '%d_%m_%Y_%H_%M_%S')}_vm_states.txt" if file_path_to_dump else None
-        response = self._send_request(url=GET_VM_STATES_ENDPOINT, body=body, save_to_file=file)
+        response = self._send_request(url=GET_VM_STATES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
         return response
 
     def _send_request(self, url: str, body: str, save_to_file: str = None) -> json:
