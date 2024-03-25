@@ -41,6 +41,7 @@ def parse_file(file: str, full_version_info: bool = False) -> list[str]:
             for version, count in [(elem.version, elem.count) for elem in current_device]:
                 print(f"v{version} - {count}")
             print("=======")
+    output.sort()
     return output
 
 
