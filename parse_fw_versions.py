@@ -12,7 +12,7 @@ class Firmware:
     count: int
 
 
-def parse_file(file: str, full_version_info: bool = False) -> list[str]:
+def parse_file(file: str, full_version_info_file: str = None) -> list[str]:
     data = {}
     with open(file) as f:
         data = json.load(f)
@@ -31,20 +31,22 @@ def parse_file(file: str, full_version_info: bool = False) -> list[str]:
     items = sorted(items, key=operator.attrgetter("device", "version"))
     devices = list(set([elem.device for elem in items]))
     output = []
+    version_info = []
     for i, device in enumerate(devices):
         current_device = [elem for elem in items if elem.device == device]
         current_device_count = sum(elem.count for elem in current_device)
-        # print(current_device)
-        print(f"{i} - {device}. Count = {current_device_count}")
         output.append(f"{device} - {current_device_count}")
-        if full_version_info:
+        if full_version_info_file:
+            version_info.append(f"{device} - {current_device_count}\n")
             for version, count in [(elem.version, elem.count) for elem in current_device]:
-                print(f"v{version} - {count}")
-            print("=======")
+                version_info.append(f"v{version} - {count}\n")
+            version_info.append("=======\n")
+    if full_version_info_file:
+        with open(full_version_info_file, "w") as f:
+            f.writelines(version_info)
     output.sort()
     return output
 
 
 if __name__ == "__main__":
-    output = parse_file("company7_15_03_2024_16_33_17_vm_states.txt")
-    # parse_file("company380637_15_03_2024_16_27_21_vm_states.txt")
+    output = parse_file("vend_machines.txt", "version_info.txt")

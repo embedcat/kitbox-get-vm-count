@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 
 TEMP_FILENAME = "vend_machines.txt"
+VERSION_FILENAME = "version_info.txt"
 
 
 def count_vms(vms: list) -> int:
@@ -41,16 +42,17 @@ if __name__ == "__main__":
     api = KVApi(client=client)
 
     script_path = os.path.dirname(os.path.abspath(__file__))
-    # file = f"{script_path}/company{client.company_id}_{datetime.strftime(datetime.now(), '%d_%m_%Y_%H_%M_%S')}_vm_states.txt"
     file = f"{script_path}/{TEMP_FILENAME}"
     if os.path.exists(file):
         os.remove(file)
+
+    version_file = f"{script_path}/{VERSION_FILENAME}"
 
     response = api.get_vm_states(file_path_to_dump=file)
     if response:
         if response["ResultCode"] == 0:
             actual_count = count_vms(vms=response["VendingMachines"])
-            device_count = parse_fw_versions.parse_file(file)
+            device_count = parse_fw_versions.parse_file(file=file, full_version_info_file=version_file)
             update_html(counter=actual_count, device_count=device_count, filepath=sys.argv[1] if len(sys.argv) > 1 else None)
         else:
             print(f"Error. Result code is {response['ResultCode']}")
