@@ -30,6 +30,13 @@ class KVApi():
         response = self._send_request(url=GET_VM_STATES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
         return response
 
+    def get_vending_machines(self, file_path_to_dump: str = None) -> json:
+        auth = self._make_auth()
+        # filter = make_filter(up_date="20.12.2023 15:41:08", to_date="21.12.2023 13:59:00")
+        body = self._make_body(auth=auth)
+        response = self._send_request(url=GET_VENDING_MACHNES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
+        return response
+
     def _send_request(self, url: str, body: str, save_to_file: str = None) -> json:
         print("Sending request ...")
         r = requests.post(url=url, data=body)
