@@ -1,18 +1,28 @@
 <!DOCTYPE html>
 
 <html lang="en">
+
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Kitbox count</title>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
-<style>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Kitbox count</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&amp;display=swap" rel="stylesheet" />
+    <style>
         body {
             font-family: 'Roboto Mono', monospace;
             font-size: 16px;
             background-color: #EDF2F2;
+        }
+
+        ul {
+            margin: 0;
+        }
+
+        li {
+            list-style-type: none;
+            padding: 0;
         }
 
         .centered {
@@ -24,17 +34,22 @@
         }
 
         .devices {
-            list-style-type:none;
             color: #0071FE;
-            padding: 0;
         }
+
         .counter {
             font-size: 80px;
             color: #0071FE;
         }
+        
+        .failure {
+            color: #D00000;
+        }
+
         .version-info a {
             color: #dadee4;
         }
+
         .updated {
             text-align: center;
             color: #dadee4;
@@ -43,14 +58,20 @@
     </style>
 </head>
 <script src="./script.js"></script>
+
 <body>
-<div class="centered">
-<h1 class="counter" id="counter">No data</h1>
-<div class="total" id="total">
-<ul class="devices" id="devices"></ul>
-</div>
-<div class="version-info"><a href="./version_info.txt" target="_blank">Full version info</a></div>
-<div class="updated" id="updated"></div>
-</div>
+    <div class="centered">
+        <h1 class="counter" id="counter">No data</h1>
+        <div class="total" id="total">
+            <ul class="devices" id="devices"></ul>
+        </div>
+        <div class="version-info"><a href="./version_info.txt" target="_blank">Full version info</a></div>
+        <div class="updated" id="updated"></div>
+        <br>
+        <ul class="devices" id="servers"></ul>
+        <div class="updated" id="updated-servers"></div>
+        <div class="updated" id="last-failure"></div>
+    </div>
 </body>
+
 </html>
