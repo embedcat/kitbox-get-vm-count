@@ -10,9 +10,11 @@ MSK = timezone(timedelta(hours=3))
 
 
 GET_MODEMS_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetModems"
-GET_VENDING_MACHNES_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetVendingMachines"
+GET_VENDING_MACHINES_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetVendingMachines"
 GET_VENDING_MACHINE_BY_ID_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetVendingMachineById"
 GET_VM_STATES_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetVMStates"
+
+API_TIMEOUT = (10, 120)
 
 
 @dataclass
@@ -27,23 +29,24 @@ class KVApi():
         self.client = client
         self._last_request_id = 0
 
-    def get_vm_states(self, file_path_to_dump: str = None) -> json:
+    def get_vm_states(self, file_path_to_dump: str = None) -> dict:
         auth = self._make_auth()
         # filter = make_filter(up_date="20.12.2023 15:41:08", to_date="21.12.2023 13:59:00")
         body = self._make_body(auth=auth)
         response = self._send_request(url=GET_VM_STATES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
         return response
 
-    def get_vending_machines(self, file_path_to_dump: str = None) -> json:
+    def get_vending_machines(self, file_path_to_dump: str = None) -> dict:
         auth = self._make_auth()
         # filter = make_filter(up_date="20.12.2023 15:41:08", to_date="21.12.2023 13:59:00")
         body = self._make_body(auth=auth)
-        response = self._send_request(url=GET_VENDING_MACHNES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
+        response = self._send_request(url=GET_VENDING_MACHINES_ENDPOINT, body=body, save_to_file=file_path_to_dump)
         return response
 
-    def _send_request(self, url: str, body: str, save_to_file: str = None) -> json:
-        print("Sending request ...")
-        r = requests.post(url=url, data=body)
+    def _send_request(self, url: str, body: str, save_to_file: str = None) -> dict:
+        request_id = json.loads(body).get("Auth", {}).get("RequestId")
+        print(f"Sending request to {url}, RequestId: {request_id}")
+        r = requests.post(url=url, data=body, timeout=API_TIMEOUT)
         print(f"Response received, status code: {r.status_code}")
         response = r.json()
         if save_to_file:
@@ -94,5 +97,4 @@ class KVApi():
             body["Id"] = int(id)
 
         body = json.dumps(body, indent=4)
-        print(body)
         return body

@@ -2,40 +2,15 @@ import json
 import os
 import sys
 import parse_fw_versions
-from KVApi import KVApi, APIClient
-from datetime import datetime, timedelta
+import requests
+from KVApi import KVApi, APIClient, MSK
+from datetime import datetime
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
 
 
 TEMP_FILENAME = "vend_machines.txt"
 VERSION_FILENAME = "version_info.txt"
 DATA_JSON_FILENAME = "data.json"
-
-
-def count_vms(vms: list) -> int:
-    now = datetime.now()
-    return len([elem for elem in vms if now - datetime.strptime(elem["DateTime"], "%d.%m.%Y %H:%M:%S") <= timedelta(weeks=2)])
-
-
-def update_html(counter: int, device_count: list[str], filepath: str) -> None:
-    if not filepath:
-        return
-    with open(filepath) as file:
-        html = file.read()
-        soup = BeautifulSoup(html, "html.parser")
-    tag_counter = soup.find(id="counter")
-    tag_counter.string = str(counter)
-    tag_updated = soup.find(id="updated")
-    tag_updated.string = str(datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
-    tag_devices = soup.find(id="devices")
-    tag_devices.clear()
-    for item in device_count:
-        li = soup.new_tag("li", attrs={"class": "device-item"})
-        li.string = item
-        tag_devices.append(li)
-    with open(filepath, "w") as file:
-        file.write(str(soup))
 
 
 def create_json(counter: int, device_count: list[str], filepath: str) -> None:
@@ -61,12 +36,22 @@ if __name__ == "__main__":
     version_file = f"{script_path}/{VERSION_FILENAME}"
     json_file = f"{script_path}/{DATA_JSON_FILENAME}"
 
-    response = api.get_vm_states(file_path_to_dump=file)
-    if response:
-        if response["ResultCode"] == 0:
-            actual_count = count_vms(vms=response["VendingMachines"])
-            device_count = parse_fw_versions.parse_file(file=file, full_version_info_file=version_file)
-            # update_html(counter=actual_count, device_count=device_count, filepath=sys.argv[1] if len(sys.argv) > 1 else None)
-            create_json(counter=actual_count, device_count=device_count, filepath=json_file)
-        else:
-            print(f"Error. Result code is {response['ResultCode']}: {response.get('ErrorMessage')}")
+    try:
+        response = api.get_vm_states(file_path_to_dump=file)
+    except requests.exceptions.JSONDecodeError as e:
+        print(f"Error. Response is not valid JSON: {e}")
+        sys.exit(1)
+    except requests.RequestException as e:
+        print(f"Error. Request failed: {e}")
+        sys.exit(1)
+
+    if response["ResultCode"] == 0:
+        active_vms, invalid_count = parse_fw_versions.filter_active(response["VendingMachines"], datetime.now(MSK))
+        if invalid_count:
+            print(f"VMs without valid DateTime: {invalid_count}")
+        actual_count = len(active_vms)
+        device_count = parse_fw_versions.parse_file(vms=active_vms, full_version_info_file=version_file)
+        create_json(counter=actual_count, device_count=device_count, filepath=json_file)
+    else:
+        print(f"Error. Result code is {response['ResultCode']}: {response.get('ErrorMessage')}")
+        sys.exit(1)
