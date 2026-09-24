@@ -50,7 +50,7 @@ def create_json(counter: int, device_count: list[str], filepath: str) -> None:
 
 if __name__ == "__main__":
     load_dotenv(override=True)
-    client = APIClient(company_id=os.getenv("COMPANY_ID"), user_login=os.getenv("USER_LOGIN"), user_password=os.getenv("USER_PASSWORD"))
+    client = APIClient(company_id=int(os.getenv("COMPANY_ID")), user_login=os.getenv("USER_LOGIN"), user_password=os.getenv("USER_PASSWORD"))
     api = KVApi(client=client)
 
     script_path = os.path.dirname(os.path.abspath(__file__))
@@ -69,4 +69,4 @@ if __name__ == "__main__":
             # update_html(counter=actual_count, device_count=device_count, filepath=sys.argv[1] if len(sys.argv) > 1 else None)
             create_json(counter=actual_count, device_count=device_count, filepath=json_file)
         else:
-            print(f"Error. Result code is {response['ResultCode']}")
+            print(f"Error. Result code is {response['ResultCode']}: {response.get('ErrorMessage')}")

@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import time
 
 import requests
+
+MSK = timezone(timedelta(hours=3))
 
 
 GET_MODEMS_ENDPOINT = "https://api2.kit-invest.ru/APIService.svc/GetModems"
@@ -22,6 +25,7 @@ class APIClient:
 class KVApi():
     def __init__(self, client: APIClient) -> None:
         self.client = client
+        self._last_request_id = 0
 
     def get_vm_states(self, file_path_to_dump: str = None) -> json:
         auth = self._make_auth()
@@ -47,8 +51,16 @@ class KVApi():
                 json.dump(response, f, indent=4)
         return response
 
+    def _next_request_id(self) -> int:
+        while True:
+            request_id = int(datetime.now(MSK).strftime("%y%m%d%H%M%S"))
+            if request_id > self._last_request_id:
+                self._last_request_id = request_id
+                return request_id
+            time.sleep(0.1)
+
     def _make_auth(self) -> dict:
-        request_id = int(time.time())
+        request_id = self._next_request_id()
         sign = hashlib.md5(
             f"{str(self.client.company_id)}{str(self.client.user_password)}{str(request_id)}".encode()
         ).hexdigest()
