@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from collections import Counter
 
 from KVApi import MSK
+from output import write_atomic
 
 UNKNOWN_VERSION = "?"
 
@@ -86,8 +87,7 @@ def parse_file(vms: list, full_version_info_file: str = None) -> list[str]:
                 version_info.append(f"v{item.version} - {item.count}\n")
             version_info.append("=======\n")
     if full_version_info_file:
-        with open(full_version_info_file, "w") as f:
-            f.writelines(version_info)
+        write_atomic(full_version_info_file, "".join(version_info))
     return output
 
 

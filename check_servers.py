@@ -1,4 +1,3 @@
-from datetime import datetime
 import json
 import os
 import threading
@@ -6,6 +5,7 @@ from urllib.parse import urlsplit
 import requests
 from paho.mqtt import client as mqtt_client
 from dotenv import load_dotenv
+import output
 
 
 DATA_JSON_FILENAME = "server_status.json"
@@ -80,7 +80,7 @@ def _load_previous(filepath: str) -> dict:
 def _with_last_failure(entry: dict, previous_entry: dict = None) -> dict:
     last_failure = previous_entry.get("last_failure") if previous_entry else None
     if not entry["ok"]:
-        last_failure = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        last_failure = output.timestamps()["updated_datetime"]
     result = dict(entry)
     if last_failure:
         result["last_failure"] = last_failure
@@ -93,18 +93,15 @@ def create_json(services: dict, mqtt: dict, filepath: str) -> None:
     data = {
         "services": _with_last_failure(services, previous.get("services")),
         "mqtt": _with_last_failure(mqtt, previous.get("mqtt")),
-        "updated_datetime": str(datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
+        **output.timestamps(),
     }
-
-    with open(filepath, "w") as out:
-        json.dump(data, out)
+    output.write_atomic(filepath, json.dumps(data))
 
 
 if __name__ == '__main__':
     load_dotenv(override=True)
 
-    script_path = os.path.dirname(os.path.abspath(__file__))
-    json_file = f"{script_path}/{DATA_JSON_FILENAME}"
+    json_file = os.path.join(output.output_dir(), DATA_JSON_FILENAME)
 
     services_results = check_services_api(urls=os.getenv("SERVICES_API_URLS").split(","))
     for r in services_results:

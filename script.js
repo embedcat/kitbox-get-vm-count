@@ -1,5 +1,8 @@
+const STATS_MAX_AGE_MS = 3 * 60 * 60 * 1000
+const SERVERS_MAX_AGE_MS = 15 * 60 * 1000
+
 function onReady() {
-    fetch('./data.json', {cache: "no-store"})
+    fetch('./data/data.json', {cache: "no-store"})
         .then((response) => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
@@ -16,14 +19,14 @@ function onReady() {
                 li.setAttribute("class", "device-item")
                 list.appendChild(li)
             }
-            document.getElementById("updated").textContent = String(data["updated_datetime"])
+            showUpdated("updated", data, STATS_MAX_AGE_MS)
         })
         .catch((error) => {
             document.getElementById("counter").textContent = "No data"
             showError("devices", `data.json unavailable: ${error.message}`)
-            document.getElementById("updated").textContent = ""
+            showUpdated("updated", null)
         });
-    fetch('./server_status.json', {cache: "no-store"})
+    fetch('./data/server_status.json', {cache: "no-store"})
         .then((response) => {
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
@@ -47,14 +50,27 @@ function onReady() {
                     lastFailures.push(`${entry["name"]}: ${entry["last_failure"]}`)
                 }
             }
-            document.getElementById("updated-servers").textContent = String(data["updated_datetime"])
+            showUpdated("updated-servers", data, SERVERS_MAX_AGE_MS)
             document.getElementById("last-failure").textContent = lastFailures.length ? "Last failure — " + lastFailures.join(", ") : ""
         })
         .catch((error) => {
             showError("servers", `server_status.json unavailable: ${error.message}`)
-            document.getElementById("updated-servers").textContent = ""
+            showUpdated("updated-servers", null)
             document.getElementById("last-failure").textContent = ""
         });
+}
+
+function showUpdated(elementId, data, maxAgeMs) {
+    var element = document.getElementById(elementId)
+    if (!data) {
+        element.textContent = ""
+        element.classList.remove("stale")
+        return
+    }
+    var age = Date.now() - Date.parse(data["updated_ts"])
+    var stale = !(age <= maxAgeMs)
+    element.textContent = String(data["updated_datetime"]) + (stale ? " — stale" : "")
+    element.classList.toggle("stale", stale)
 }
 
 function showError(listId, text) {

@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import output
 import parse_fw_versions
 import requests
 from KVApi import KVApi, APIClient, MSK
@@ -17,10 +18,9 @@ def create_json(counter: int, device_count: list[str], filepath: str) -> None:
     data = {
         "counter": counter,
         "device_count": device_count,
-        "updated_datetime": str(datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
+        **output.timestamps(),
     }
-    with open(filepath, "w") as out:
-        json.dump(data, out)
+    output.write_atomic(filepath, json.dumps(data))
 
 
 if __name__ == "__main__":
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     if os.path.exists(file):
         os.remove(file)
 
-    version_file = f"{script_path}/{VERSION_FILENAME}"
-    json_file = f"{script_path}/{DATA_JSON_FILENAME}"
+    version_file = os.path.join(output.output_dir(), VERSION_FILENAME)
+    json_file = os.path.join(output.output_dir(), DATA_JSON_FILENAME)
 
     try:
         response = api.get_vm_states(file_path_to_dump=file)

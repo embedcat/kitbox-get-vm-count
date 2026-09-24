@@ -1,0 +1,2 @@
+*/5 * * * * cd ~/kitvendig-api && flock -n /tmp/kitbox-servers.lock sh -c 'date -Is; venv/bin/python check_servers.py; venv/bin/python publish.py server_status.json' >> servers.log 2>&1
+0 * * * *   cd ~/kitvendig-api && flock -n /tmp/kitbox-stats.lock sh -c 'date -Is; venv/bin/python get_active_modems.py; venv/bin/python publish.py data.json version_info.txt' >> stats.log 2>&1
