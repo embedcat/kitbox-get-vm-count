@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from KVApi import MSK
+from kitvending_api import MSK
 
 
 def test_msk_offset():

@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 
-from KVApi import MSK
+from kitvending_api import MSK
 
 DEFAULT_OUTPUT_DIR = "data"
 

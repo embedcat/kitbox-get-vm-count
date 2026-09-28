@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from KVApi import MSK
+from kitvending_api import MSK
 import parse_fw_versions
 
 

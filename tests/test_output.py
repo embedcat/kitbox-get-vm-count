@@ -5,7 +5,7 @@ import os
 import check_servers
 import get_active_modems
 import output
-from KVApi import MSK
+from kitvending_api import MSK
 
 
 def test_output_dir_default_is_data_next_to_scripts(monkeypatch):

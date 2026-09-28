@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from collections import Counter
 
-from KVApi import MSK
+from kitvending_api import MSK, parse_datetime
 from output import write_atomic
 
 UNKNOWN_VERSION = "?"
@@ -14,15 +14,6 @@ class Firmware:
     device: str
     version: str
     count: int
-
-
-def parse_datetime(value) -> datetime | None:
-    if not value:
-        return None
-    try:
-        return datetime.strptime(value, "%d.%m.%Y %H:%M:%S").replace(tzinfo=MSK)
-    except (ValueError, TypeError):
-        return None
 
 
 def filter_active(vms: list, now: datetime) -> tuple[list, int]:
