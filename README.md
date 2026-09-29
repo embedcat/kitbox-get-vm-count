@@ -18,3 +18,14 @@ pytest
 
 Версия `kitvending-api` зафиксирована тегом в `requirements.txt`. После её смены на сервере с cron нужен
 `venv/bin/pip install -r requirements.txt`, одного `git pull` мало.
+
+## Развёртывание
+
+Изменения выкладываются двумя `git pull` после пуша в GitHub, автоматики нет:
+
+- коллектор (`kit@kit-invest.work`): `cd ~/kitvendig-api && git pull` (плюс `pip install`, если менялся `requirements.txt`);
+- VPS со страницей: `ssh kip@rockevents.ru 'git -C /srv/kitbox-src pull --ff-only'`.
+
+На VPS в `/srv/kitbox-src` лежит клон этого репозитория, а `/var/www/kitbox/index.html` и `script.js` — симлинки
+на его файлы. Наружу отдаются только они и `data/`. Ключ коллектора пишет лишь в `data/` и код страницы менять не может.
+Откат страницы: `git -C /srv/kitbox-src checkout <hash>`, вернуться на master — `git -C /srv/kitbox-src checkout master`.
