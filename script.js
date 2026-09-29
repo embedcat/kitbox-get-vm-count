@@ -7,6 +7,8 @@ const MSK_DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
 })
 const MSK_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit", hourCycle: "h23"})
 
+var uptimeSelected = null  // {key, start} of the bar whose popup is open
+
 function onReady() {
     fetch('./data/data.json', {cache: "no-store"})
         .then((response) => {
@@ -127,34 +129,133 @@ function bucketState(bucket) {
     return bucket.ok ? "partial" : "down"
 }
 
+function bucketText(bucket) {
+    var checks = `${bucket.total} check${bucket.total === 1 ? "" : "s"}`
+    switch (bucketState(bucket)) {
+        case "up":
+            return `All ${checks} OK`
+        case "down":
+            return `All ${checks} failed`
+        case "partial":
+            return `${bucket.ok} of ${checks} OK`
+        default:
+            return "No data"
+    }
+}
+
+function getUptimePopup() {
+    var popup = document.getElementById("uptime-popup")
+    if (!popup) {
+        popup = document.createElement("div")
+        popup.setAttribute("id", "uptime-popup")
+        popup.setAttribute("class", "uptime-popup")
+        popup.setAttribute("role", "status")
+        document.body.appendChild(popup)
+    }
+    return popup
+}
+
+function clearUptimeSelection() {
+    uptimeSelected = null
+    getUptimePopup().classList.remove("visible")
+    for (const bar of document.querySelectorAll(".uptime-bar.selected")) {
+        bar.classList.remove("selected")
+    }
+}
+
+function selectUptimeBucket(bars, key, name, buckets, index) {
+    var bucket = buckets[index]
+    if (uptimeSelected && uptimeSelected.key === key && uptimeSelected.start === bucket.start) {
+        return
+    }
+    clearUptimeSelection()
+    uptimeSelected = {key: key, start: bucket.start}
+    var bar = bars.children[index]
+    bar.classList.add("selected")
+
+    var popup = getUptimePopup()
+    popup.textContent = ""
+    var title = document.createElement("div")
+    title.setAttribute("class", "uptime-popup-title")
+    title.textContent = `${name} · ${formatPeriod(bucket.start, bucket.start + HISTORY_BUCKET_MS)}`
+    var status = document.createElement("div")
+    status.setAttribute("class", `uptime-popup-status ${bucketState(bucket)}`)
+    status.textContent = bucketText(bucket)
+    popup.append(title, status)
+
+    var margin = 8
+    var rect = bar.getBoundingClientRect()
+    var left = rect.left + rect.width / 2 - popup.offsetWidth / 2
+    left = Math.max(margin, Math.min(left, document.documentElement.clientWidth - popup.offsetWidth - margin))
+    var top = rect.top - popup.offsetHeight - margin
+    if (top < margin) {
+        top = rect.bottom + margin
+    }
+    popup.style.left = `${left + window.scrollX}px`
+    popup.style.top = `${top + window.scrollY}px`
+    popup.classList.add("visible")
+}
+
+function bucketIndexAt(bars, count, clientX) {
+    var rect = bars.getBoundingClientRect()
+    return Math.max(0, Math.min(count - 1, Math.floor((clientX - rect.left) / rect.width * count)))
+}
+
 function showUptime(data) {
     var container = document.getElementById("uptime")
     container.textContent = ""
     if (!data || !Array.isArray(data["history"])) {
+        clearUptimeSelection()
         return
     }
     var now = Date.now()
+    var selected = uptimeSelected
+    var stillThere = false
     for (const key of ["services", "mqtt"]) {
-        var buckets = buildBuckets(data["history"], key, now)
+        // const, not var: the handlers below must keep this row's values, not the last row's
+        const buckets = buildBuckets(data["history"], key, now)
+        const label = data[key]["name"]
+        const bars = document.createElement("div")
+        bars.setAttribute("class", "uptime-bars")
         var row = document.createElement("div")
         row.setAttribute("class", "uptime-row")
         var name = document.createElement("span")
         name.setAttribute("class", "uptime-name")
-        name.textContent = data[key]["name"]
-        var bars = document.createElement("div")
-        bars.setAttribute("class", "uptime-bars")
+        name.textContent = label
         for (const bucket of buckets) {
             var bar = document.createElement("div")
             bar.setAttribute("class", `uptime-bar ${bucketState(bucket)}`)
-            var period = formatPeriod(bucket.start, bucket.start + HISTORY_BUCKET_MS)
-            bar.setAttribute("title", bucket.total ? `${period}: ${bucket.ok}/${bucket.total} OK` : `${period}: no data`)
             bars.appendChild(bar)
         }
+        // a 5 px wide bar is hard to hit with a finger, so pick the bucket by the x position over the whole row
+        const select = (event) => selectUptimeBucket(bars, key, label, buckets, bucketIndexAt(bars, buckets.length, event.clientX))
+        bars.addEventListener("click", select)
+        bars.addEventListener("pointermove", (event) => {
+            if (event.pointerType === "mouse") {
+                select(event)
+            }
+        })
+        bars.addEventListener("pointerleave", (event) => {
+            if (event.pointerType === "mouse") {
+                clearUptimeSelection()
+            }
+        })
         var percent = document.createElement("span")
         percent.setAttribute("class", "uptime-percent")
         percent.textContent = formatUptime(buckets)
         row.append(name, bars, percent)
         container.appendChild(row)
+
+        // the page refreshes itself: keep the popup on the same bar if it is still within the window
+        var index = selected && selected.key === key ? buckets.findIndex((bucket) => bucket.start === selected.start) : -1
+        if (index >= 0) {
+            uptimeSelected = null
+            selectUptimeBucket(bars, key, label, buckets, index)
+            stillThere = true
+        }
+    }
+    if (selected && !stillThere) {
+        clearUptimeSelection()
     }
     var axis = document.createElement("div")
     axis.setAttribute("class", "uptime-axis")
@@ -178,6 +279,17 @@ function showError(listId, text) {
 function init() {
     onReady()
     setInterval(onReady, 5 * 60 * 1000)
+    document.addEventListener("pointerdown", (event) => {
+        if (!event.target.closest(".uptime-bars")) {
+            clearUptimeSelection()
+        }
+    })
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            clearUptimeSelection()
+        }
+    })
+    window.addEventListener("resize", clearUptimeSelection)
 }
 
 document.addEventListener("DOMContentLoaded", init);
