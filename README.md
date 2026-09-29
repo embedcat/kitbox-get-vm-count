@@ -3,7 +3,8 @@
 Мониторинг Kit Vending: число активных автоматов, версии прошивок и доступность сервисов для страницы
 https://kitbox.rockevents.ru/. С API работает через библиотеку [kitvending-api](https://github.com/embedcat/kitvending-api).
 
-- `get_active_modems.py` — число активных автоматов и версии прошивок → `data/data.json`, `data/version_info.txt`;
+- `get_active_modems.py` — число активных автоматов и версии прошивок → `data/data.json`, `data/version_info.txt`. Ответ API по
+  полному аккаунту идёт около 8 минут, поэтому таймаут 15 минут (`API_TIMEOUT`), а запуск раз в сутки в 4:00;
 - `check_servers.py` — доступность сервисов и MQTT → `data/server_status.json`. Кроме текущего статуса в файле лежит
   `history` — результаты проверок за последние 24 часа, по ним страница рисует график доступности (полосы по 30 минут:
   зелёная — все проверки успешны, жёлтая — часть, красная — ни одной, серая — нет данных; `null` вместо `true`/`false` —

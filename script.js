@@ -1,4 +1,4 @@
-const STATS_MAX_AGE_MS = 3 * 60 * 60 * 1000
+const STATS_MAX_AGE_MS = 26 * 60 * 60 * 1000  // stats are collected once a day at 04:00 and take about 8 minutes
 const SERVERS_MAX_AGE_MS = 15 * 60 * 1000
 const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000
 const HISTORY_BUCKET_MS = 30 * 60 * 1000

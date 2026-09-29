@@ -13,6 +13,13 @@ TEMP_FILENAME = "vend_machines.txt"
 VERSION_FILENAME = "version_info.txt"
 DATA_JSON_FILENAME = "data.json"
 
+# GetVMStates of the full account (about 47000 machines) takes around 8 minutes
+API_TIMEOUT = (10, 900)
+
+
+def create_client() -> KitVendingClient:
+    return KitVendingClient.from_env(timeout=API_TIMEOUT)
+
 
 def create_json(counter: int, device_count: list[str], filepath: str) -> None:
     data = {
@@ -26,7 +33,7 @@ def create_json(counter: int, device_count: list[str], filepath: str) -> None:
 if __name__ == "__main__":
     load_dotenv(override=True)
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
-    api = KitVendingClient.from_env()
+    api = create_client()
 
     script_path = os.path.dirname(os.path.abspath(__file__))
     file = f"{script_path}/{TEMP_FILENAME}"
