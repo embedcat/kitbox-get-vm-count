@@ -91,7 +91,8 @@ function buildBuckets(history, key, nowMs) {
     }
     for (const entry of history) {
         var index = Math.floor((Date.parse(entry?.["ts"]) - start) / HISTORY_BUCKET_MS)
-        if (!(index >= 0 && index < count)) {
+        // null means "not measured" (history restored from logs has no MQTT results)
+        if (!(index >= 0 && index < count) || entry[key] == null) {
             continue
         }
         buckets[index].total += 1
