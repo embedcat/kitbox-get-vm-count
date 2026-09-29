@@ -7,7 +7,14 @@ const MSK_DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
 })
 const MSK_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit", hourCycle: "h23"})
 
+const FLEET_TOP_VERSIONS = 6
+// firmware names the API gives to machines without a known device: shown last, greyed out, without versions
+const UNKNOWN_DEVICES = new Map([["?", "Unknown (?)"], ["Unknown", "Unknown"]])
+
 var uptimeSelected = null  // {key, start} of the bar whose popup is open
+var fleetOpen = new Set()  // devices whose versions are shown; kept here because the page re-renders itself
+var fleetAllVersions = new Set()  // devices that show every version instead of the top ones
+var fleetShownTs = null  // updated_ts of the data the fleet block was built from
 
 function onReady() {
     fetch('./data/data.json', {cache: "no-store"})
@@ -18,19 +25,14 @@ function onReady() {
             return response.json()
         })
         .then((data) => {
-            document.getElementById("counter").textContent = String(data["counter"])
-            var list = document.getElementById("devices")
-            list.textContent = ""
-            for (const device of data["device_count"]) {
-                var li = document.createElement("li")
-                li.appendChild(document.createTextNode(device))
-                li.setAttribute("class", "device-item")
-                list.appendChild(li)
-            }
+            document.getElementById("counter").textContent = formatCount(data["counter"])
+            showFleet(data)
             showUpdated("updated", data, STATS_MAX_AGE_MS)
         })
         .catch((error) => {
             document.getElementById("counter").textContent = "No data"
+            fleetShownTs = null
+            document.getElementById("fleet").textContent = ""
             showError("devices", `data.json unavailable: ${error.message}`)
             showUpdated("updated", null)
         });
@@ -68,6 +70,153 @@ function onReady() {
             document.getElementById("last-failure").textContent = ""
             showUptime(null)
         });
+}
+
+function formatCount(count) {
+    return count.toLocaleString("en-US")
+}
+
+function formatShare(count, total, digits) {
+    var share = count / total * 100
+    var min = 10 ** -digits
+    return share < min ? `<${min}%` : share.toFixed(digits) + "%"
+}
+
+function pluralVersions(count) {
+    return `${count} version${count === 1 ? "" : "s"}`
+}
+
+function versionLabel(version) {
+    if (version === "?") {
+        return "unknown"
+    }
+    return /^\d/.test(version) ? "v" + version : version  // KV Pos reports "v.2.12", which already has the "v"
+}
+
+function makeElement(tag, className, text) {
+    var element = document.createElement(tag)
+    if (className) {
+        element.setAttribute("class", className)
+    }
+    if (text != null) {
+        element.textContent = text
+    }
+    return element
+}
+
+function showFleet(data) {
+    var fleet = document.getElementById("fleet")
+    var list = document.getElementById("devices")
+    if (!Array.isArray(data["devices"])) {
+        // data.json written before the version breakdown was added: plain list, as before
+        fleetShownTs = null
+        fleet.textContent = ""
+        list.textContent = ""
+        for (const device of data["device_count"]) {
+            var li = document.createElement("li")
+            li.appendChild(document.createTextNode(device))
+            li.setAttribute("class", "device-item")
+            list.appendChild(li)
+        }
+        return
+    }
+    list.textContent = ""
+    // the file changes once a day: do not rebuild (and drop the focus) on every refresh
+    if (fleetShownTs === data["updated_ts"]) {
+        return
+    }
+    fleetShownTs = data["updated_ts"]
+    fleet.textContent = ""
+    const bySize = (a, b) => b["count"] - a["count"]
+    var known = data["devices"].filter((device) => !UNKNOWN_DEVICES.has(device["name"])).sort(bySize)
+    var unknown = data["devices"].filter((device) => UNKNOWN_DEVICES.has(device["name"])).sort(bySize)
+    var widest = Math.max(1, ...(known.length ? known : unknown).map((device) => device["count"]))
+    for (const device of known.concat(unknown)) {
+        fleet.appendChild(fleetItem(device, data["counter"], widest))
+    }
+}
+
+function fleetItem(device, total, widest) {
+    const name = device["name"]
+    const unknown = UNKNOWN_DEVICES.has(name)
+    const label = unknown ? UNKNOWN_DEVICES.get(name) : name
+    const item = makeElement("div", "fleet-item")
+    // an unknown device has no versions to show, so its row is not a button
+    const head = makeElement(unknown ? "div" : "button", "fleet-head" + (unknown ? " unknown" : ""))
+    head.setAttribute("title", `${label}: ${formatCount(device["count"])} machines · ${formatShare(device["count"], total, 1)} of fleet`)
+    var bar = makeElement("span", "fleet-bar")
+    var fill = document.createElement("i")
+    fill.style.width = `${device["count"] / widest * 100}%`
+    bar.appendChild(fill)
+    head.append(makeElement("span", unknown ? null : "fleet-chevron"), makeElement("span", "fleet-name", label), bar,
+                makeElement("span", "fleet-count", formatCount(device["count"])))
+    item.appendChild(head)
+    if (unknown) {
+        return item
+    }
+
+    const panel = makeElement("div", "fleet-panel")
+    fillFleetPanel(panel, device)
+    const setOpen = (open) => {
+        panel.hidden = !open
+        item.classList.toggle("open", open)
+        head.setAttribute("aria-expanded", String(open))
+    }
+    head.setAttribute("type", "button")
+    setOpen(fleetOpen.has(name))
+    head.addEventListener("click", () => {
+        if (fleetOpen.has(name)) {
+            fleetOpen.delete(name)
+        } else {
+            fleetOpen.add(name)
+        }
+        setOpen(fleetOpen.has(name))
+    })
+    item.appendChild(panel)
+    return item
+}
+
+function fleetVersionRow(label, count, deviceName, deviceCount, className) {
+    var row = makeElement("div", className)
+    row.setAttribute("title", `${deviceName} ${label}: ${formatCount(count)} machines · ${formatShare(count, deviceCount, 1)} of ${deviceName}`)
+    var track = makeElement("span", "fleet-vtrack")
+    var fill = document.createElement("i")
+    fill.style.width = `${count / deviceCount * 100}%`
+    track.appendChild(fill)
+    row.append(makeElement("span", "fleet-vname", label), track, makeElement("span", "fleet-vcount", formatCount(count)),
+               makeElement("span", "fleet-vpct", formatShare(count, deviceCount, 0)))
+    return row
+}
+
+function fillFleetPanel(panel, device) {
+    const name = device["name"]
+    var versions = device["versions"].slice().sort((a, b) => b["count"] - a["count"])
+    var all = fleetAllVersions.has(name)
+    var shown = all ? versions : versions.slice(0, FLEET_TOP_VERSIONS)
+    panel.textContent = ""
+    panel.appendChild(makeElement("p", "fleet-panel-title", `Firmware · ${pluralVersions(versions.length)} · share of ${name}`))
+    shown.forEach((version, index) => {
+        panel.appendChild(fleetVersionRow(versionLabel(version["version"]), version["count"], name, device["count"], "fleet-vrow" + (index === 0 ? " top" : "")))
+    })
+    if (!all && versions.length > shown.length) {
+        var rest = versions.slice(shown.length)
+        var restCount = rest.reduce((sum, version) => sum + version["count"], 0)
+        panel.appendChild(fleetVersionRow(`+${rest.length} more`, restCount, name, device["count"], "fleet-vrow rest"))
+    }
+    if (versions.length > FLEET_TOP_VERSIONS) {
+        var toggle = makeElement("button", "fleet-all", all ? "Top versions only" : `All ${versions.length} versions →`)
+        toggle.setAttribute("type", "button")
+        toggle.addEventListener("click", () => {
+            if (fleetAllVersions.has(name)) {
+                fleetAllVersions.delete(name)
+            } else {
+                fleetAllVersions.add(name)
+            }
+            fillFleetPanel(panel, device)
+            panel.querySelector(".fleet-all").focus()
+        })
+        panel.appendChild(toggle)
+    }
 }
 
 function showUpdated(elementId, data, maxAgeMs) {

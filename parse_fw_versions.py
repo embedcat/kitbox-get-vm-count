@@ -54,7 +54,7 @@ def version_sort_key(version: str):
     return (1, version)
 
 
-def parse_file(vms: list, full_version_info_file: str = None) -> list[str]:
+def build_devices(vms: list) -> list[dict]:
     fws = [vm.get("Firmware") for vm in vms]
     counter = dict(Counter(fws))
     grouped = {}
@@ -65,21 +65,32 @@ def parse_file(vms: list, full_version_info_file: str = None) -> list[str]:
     items = [Firmware(device=device, version=version, count=count) for (device, version), count in grouped.items()]
     items = sorted(items, key=lambda item: (item.device, version_sort_key(item.version)))
 
-    devices = sorted(set(item.device for item in items))
-    output = []
+    devices = []
+    for device in sorted(set(item.device for item in items)):
+        versions = [{"version": item.version, "count": item.count} for item in items if item.device == device]
+        devices.append({"name": device, "count": sum(version["count"] for version in versions), "versions": versions})
+    return devices
+
+
+def device_lines(devices: list[dict]) -> list[str]:
+    return [f"{device['name']} - {device['count']}" for device in devices]
+
+
+def write_version_info(devices: list[dict], path: str) -> None:
     version_info = []
     for device in devices:
-        current_device = [item for item in items if item.device == device]
-        current_device_count = sum(item.count for item in current_device)
-        output.append(f"{device} - {current_device_count}")
-        if full_version_info_file:
-            version_info.append(f"{device} - {current_device_count}\n")
-            for item in current_device:
-                version_info.append(f"v{item.version} - {item.count}\n")
-            version_info.append("=======\n")
+        version_info.append(f"{device['name']} - {device['count']}\n")
+        for version in device["versions"]:
+            version_info.append(f"v{version['version']} - {version['count']}\n")
+        version_info.append("=======\n")
+    write_atomic(path, "".join(version_info))
+
+
+def parse_file(vms: list, full_version_info_file: str = None) -> list[str]:
+    devices = build_devices(vms)
     if full_version_info_file:
-        write_atomic(full_version_info_file, "".join(version_info))
-    return output
+        write_version_info(devices, full_version_info_file)
+    return device_lines(devices)
 
 
 if __name__ == "__main__":

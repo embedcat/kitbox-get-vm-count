@@ -21,10 +21,11 @@ def create_client() -> KitVendingClient:
     return KitVendingClient.from_env(timeout=API_TIMEOUT)
 
 
-def create_json(counter: int, device_count: list[str], filepath: str) -> None:
+def create_json(counter: int, device_count: list[str], devices: list[dict], filepath: str) -> None:
     data = {
         "counter": counter,
         "device_count": device_count,
+        "devices": devices,
         **output.timestamps(),
     }
     output.write_atomic(filepath, json.dumps(data))
@@ -55,5 +56,6 @@ if __name__ == "__main__":
     if invalid_count:
         print(f"VMs without valid DateTime: {invalid_count}")
     actual_count = len(active_vms)
-    device_count = parse_fw_versions.parse_file(vms=active_vms, full_version_info_file=version_file)
-    create_json(counter=actual_count, device_count=device_count, filepath=json_file)
+    devices = parse_fw_versions.build_devices(active_vms)
+    parse_fw_versions.write_version_info(devices, version_file)
+    create_json(counter=actual_count, device_count=parse_fw_versions.device_lines(devices), devices=devices, filepath=json_file)

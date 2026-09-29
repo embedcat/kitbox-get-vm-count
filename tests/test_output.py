@@ -37,10 +37,19 @@ def test_write_atomic_replaces_and_leaves_no_temp(tmp_path):
 
 def test_data_json_has_parsable_timestamp(tmp_path):
     path = tmp_path / "data.json"
-    get_active_modems.create_json(counter=1, device_count=["KPL - 1"], filepath=str(path))
+    get_active_modems.create_json(counter=1, device_count=["KPL - 1"], devices=[], filepath=str(path))
     data = json.loads(path.read_text())
     assert datetime.fromisoformat(data["updated_ts"]).utcoffset() == MSK.utcoffset(None)
     assert data["updated_datetime"]
+
+
+def test_data_json_keeps_device_count_next_to_devices(tmp_path):
+    path = tmp_path / "data.json"
+    devices = [{"name": "KPL", "count": 1, "versions": [{"version": "1.09", "count": 1}]}]
+    get_active_modems.create_json(counter=1, device_count=["KPL - 1"], devices=devices, filepath=str(path))
+    data = json.loads(path.read_text())
+    assert data["device_count"] == ["KPL - 1"]
+    assert data["devices"] == devices
 
 
 def test_server_status_has_parsable_timestamp(tmp_path):
