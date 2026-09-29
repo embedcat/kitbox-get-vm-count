@@ -1,8 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 import time
 
 import requests
+from kitvending_api import MSK
 
 import check_servers
 
@@ -181,3 +182,72 @@ def test_create_json_handles_old_formats_without_crashing(tmp_path):
             data = json.load(f)
         assert data["services"] == services
         assert data["mqtt"] == mqtt
+
+
+def _read(filepath):
+    with open(filepath) as f:
+        return json.load(f)
+
+
+def test_create_json_appends_history_entry(tmp_path):
+    filepath = str(tmp_path / "server_status.json")
+    now = datetime(2026, 9, 29, 12, 0, 0, tzinfo=MSK)
+    check_servers.create_json(services={"name": "Services", "ok": False, "detail": "1/2 OK"},
+                              mqtt={"name": "MQTT", "ok": True, "detail": "OK"}, filepath=filepath, now=now)
+
+    assert _read(filepath)["history"] == [{"ts": "2026-09-29T12:00:00+03:00", "services": False, "mqtt": True}]
+
+
+def test_create_json_keeps_history_between_runs_in_order(tmp_path):
+    filepath = str(tmp_path / "server_status.json")
+    services = {"name": "Services", "ok": True, "detail": "2/2 OK"}
+    mqtt = {"name": "MQTT", "ok": True, "detail": "OK"}
+    start = datetime(2026, 9, 29, 12, 0, 0, tzinfo=MSK)
+    for i in range(3):
+        check_servers.create_json(services=services, mqtt=mqtt, filepath=filepath, now=start + timedelta(minutes=5 * i))
+
+    stamps = [e["ts"] for e in _read(filepath)["history"]]
+    assert stamps == ["2026-09-29T12:00:00+03:00", "2026-09-29T12:05:00+03:00", "2026-09-29T12:10:00+03:00"]
+
+
+def test_create_json_drops_history_older_than_retention(tmp_path):
+    filepath = str(tmp_path / "server_status.json")
+    services = {"name": "Services", "ok": True, "detail": "2/2 OK"}
+    mqtt = {"name": "MQTT", "ok": True, "detail": "OK"}
+    first = datetime(2026, 9, 28, 12, 0, 0, tzinfo=MSK)
+    check_servers.create_json(services=services, mqtt=mqtt, filepath=filepath, now=first)
+    check_servers.create_json(services=services, mqtt=mqtt, filepath=filepath, now=first + timedelta(hours=23, minutes=55))
+    check_servers.create_json(services=services, mqtt=mqtt, filepath=filepath, now=first + timedelta(hours=24, minutes=5))
+
+    stamps = [e["ts"] for e in _read(filepath)["history"]]
+    assert stamps == ["2026-09-29T11:55:00+03:00", "2026-09-29T12:05:00+03:00"]
+
+
+def test_create_json_ignores_malformed_history(tmp_path):
+    filepath = str(tmp_path / "server_status.json")
+    services = {"name": "Services", "ok": True, "detail": "1/1 OK"}
+    mqtt = {"name": "MQTT", "ok": True, "detail": "OK"}
+    now = datetime(2026, 9, 29, 12, 0, 0, tzinfo=MSK)
+    good = {"ts": "2026-09-29T11:55:00+03:00", "services": True, "mqtt": True}
+    bad_histories = [
+        "not a list",
+        [None, 5, "x", {}, {"ts": None}, {"ts": "garbage"}, {"ts": "2026-09-29T11:00:00"}, good],
+    ]
+    for history in bad_histories:
+        with open(filepath, "w") as f:
+            json.dump({"services": services, "mqtt": mqtt, "history": history}, f)
+
+        check_servers.create_json(services=services, mqtt=mqtt, filepath=filepath, now=now)
+
+        result = _read(filepath)["history"]
+        assert result[-1] == {"ts": "2026-09-29T12:00:00+03:00", "services": True, "mqtt": True}
+        assert result[:-1] == ([good] if isinstance(history, list) else [])
+
+
+def test_create_json_history_contains_no_service_addresses(tmp_path):
+    filepath = str(tmp_path / "server_status.json")
+    results = [{"name": "a.example", "ok": False, "detail": "timed out"}]
+    check_servers.create_json(services=check_servers.summarize_services(results), mqtt={"name": "MQTT", "ok": True, "detail": "OK"},
+                              filepath=filepath)
+
+    assert "example" not in json.dumps(_read(filepath)["history"])

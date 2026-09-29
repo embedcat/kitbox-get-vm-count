@@ -59,6 +59,90 @@
         .updated.stale {
             color: #D00000;
         }
+
+        .uptime {
+            width: 560px;
+            max-width: 90vw;
+            margin: 10px auto;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .uptime-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .uptime-name {
+            flex: 0 0 80px;
+        }
+
+        .uptime-bars {
+            flex: 1;
+            display: flex;
+            gap: 2px;
+            height: 30px;
+        }
+
+        .uptime-bar {
+            flex: 1;
+            border-radius: 2px;
+            background-color: #C9D1D3;
+        }
+
+        .uptime-bar.up {
+            background-color: #2BB673;
+        }
+
+        .uptime-bar.partial {
+            background-color: #F5A300;
+        }
+
+        .uptime-bar.down {
+            background-color: #D00000;
+        }
+
+        .uptime-percent {
+            flex: 0 0 60px;
+            text-align: right;
+        }
+
+        .uptime-axis {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 70px 0 90px;
+            color: #9aa3ab;
+            font-size: 12px;
+        }
+
+        @media (max-height: 700px) {
+            .centered {
+                position: static;
+                transform: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .uptime-row {
+                flex-wrap: wrap;
+                gap: 4px 10px;
+            }
+
+            .uptime-name {
+                flex: 1;
+            }
+
+            .uptime-bars {
+                order: 1;
+                flex: 1 0 100%;
+            }
+
+            .uptime-axis {
+                margin: 0;
+            }
+        }
     </style>
 </head>
 <script src="./script.js"></script>
@@ -73,6 +157,7 @@
         <div class="updated" id="updated"></div>
         <br>
         <ul class="devices" id="servers"></ul>
+        <div class="uptime" id="uptime"></div>
         <div class="updated" id="updated-servers"></div>
         <div class="updated" id="last-failure"></div>
     </div>

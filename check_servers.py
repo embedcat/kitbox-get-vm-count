@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import json
 import os
 import threading
@@ -5,6 +6,7 @@ from urllib.parse import urlsplit
 import requests
 from paho.mqtt import client as mqtt_client
 from dotenv import load_dotenv
+from kitvending_api import MSK
 import output
 
 
@@ -12,6 +14,8 @@ DATA_JSON_FILENAME = "server_status.json"
 
 SERVICES_API_TIMEOUT = (5, 15)
 MQTT_DEFAULT_TIMEOUT = 10
+
+HISTORY_RETENTION = timedelta(hours=24)
 
 
 def check_services_api(urls: list[str]) -> list[dict]:
@@ -87,13 +91,36 @@ def _with_last_failure(entry: dict, previous_entry: dict = None) -> dict:
     return result
 
 
-def create_json(services: dict, mqtt: dict, filepath: str) -> None:
+def _parse_ts(entry) -> datetime | None:
+    try:
+        return datetime.fromisoformat(entry["ts"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _updated_history(previous_history, entry: dict, now: datetime) -> list[dict]:
+    if not isinstance(previous_history, list):
+        previous_history = []
+    cutoff = now - HISTORY_RETENTION
+    kept = []
+    for old in previous_history:
+        ts = _parse_ts(old)
+        if ts and ts.tzinfo and ts > cutoff:
+            kept.append(old)
+    return kept + [entry]
+
+
+def create_json(services: dict, mqtt: dict, filepath: str, now: datetime = None) -> None:
+    now = now or datetime.now(MSK)
     previous = _load_previous(filepath)
+    stamps = output.timestamps(now)
+    history_entry = {"ts": stamps["updated_ts"], "services": services["ok"], "mqtt": mqtt["ok"]}
 
     data = {
         "services": _with_last_failure(services, previous.get("services")),
         "mqtt": _with_last_failure(mqtt, previous.get("mqtt")),
-        **output.timestamps(),
+        "history": _updated_history(previous.get("history"), history_entry, now),
+        **stamps,
     }
     output.write_atomic(filepath, json.dumps(data))
 
